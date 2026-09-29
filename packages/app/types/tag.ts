@@ -11,6 +11,9 @@
 export interface Tag {
   id: number
   name: string
+  name_de?: string | null
+  name_en?: string | null
+  name_zh?: string | null
   color: string | null
   deleted_at?: string | null
 }

@@ -328,8 +328,8 @@ import { toArray } from '~/utils/array'
 interface Props {
   show: boolean
   npc: NPC | null
-  races?: Array<{ name: string, name_de?: string | null, name_en?: string | null }>
-  classes?: Array<{ name: string, name_de?: string | null, name_en?: string | null }>
+  races?: Array<{ name: string, name_de?: string | null, name_en?: string | null, name_zh?: string | null }>
+  classes?: Array<{ name: string, name_de?: string | null, name_en?: string | null, name_zh?: string | null }>
   canGoBack?: boolean
 }
 
@@ -558,10 +558,7 @@ function close() {
 function getRaceDisplayName(raceName: string): string {
   const race = props.races.find(r => r.name === raceName)
   if (!race) return raceName
-  if (race.name_de && race.name_en) {
-    return locale.value === 'de' ? race.name_de : race.name_en
-  }
-  return race.name
+  return getLocalizedReferenceName(race, locale.value)
 }
 
 function getClassesDisplay(val: string | string[] | undefined): string {
@@ -571,10 +568,7 @@ function getClassesDisplay(val: string | string[] | undefined): string {
 function getClassDisplayName(className: string): string {
   const classData = props.classes.find(c => c.name === className)
   if (!classData) return className
-  if (classData.name_de && classData.name_en) {
-    return locale.value === 'de' ? classData.name_de : classData.name_en
-  }
-  return classData.name
+  return getLocalizedReferenceName(classData, locale.value)
 }
 
 // getNpcTypeIcon, getNpcStatusIcon, getNpcStatusColor imported from ~/utils/npc-icons

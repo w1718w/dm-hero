@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const db = getDb()
   const body = await readBody(event)
 
-  const { name, name_de, name_en, description } = body
+  const { name, name_de, name_en, name_zh, description } = body
 
   if (!name) {
     throw createError({
@@ -40,11 +40,11 @@ export default defineEventHandler(async (event) => {
   const result = db
     .prepare(
       `
-    INSERT INTO classes (name, name_de, name_en, description)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO classes (name, name_de, name_en, name_zh, description)
+    VALUES (?, ?, ?, ?, ?)
   `,
     )
-    .run(name, name_de, name_en, description || null)
+    .run(name, name_de, name_en, name_zh || null, description || null)
 
   const classData = db
     .prepare(

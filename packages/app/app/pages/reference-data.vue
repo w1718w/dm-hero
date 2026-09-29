@@ -110,9 +110,8 @@
           </template>
           <template #[`item.actions`]="{ item }">
             <div class="d-flex justify-end">
-              <!-- Standard races cannot be edited/deleted -->
+              <v-btn icon="mdi-pencil" variant="text" size="small" @click="openRaceDialog(item)" />
               <template v-if="!item.is_standard">
-                <v-btn icon="mdi-pencil" variant="text" size="small" @click="openRaceDialog(item)" />
                 <v-btn
                   icon="mdi-delete"
                   variant="text"
@@ -120,14 +119,6 @@
                   color="error"
                   @click="deleteRace(item)"
                 />
-              </template>
-              <template v-else>
-                <v-tooltip location="top">
-                  <template #activator="{ props }">
-                    <v-icon v-bind="props" icon="mdi-lock" size="small" color="grey" class="mr-2" />
-                  </template>
-                  {{ $t('referenceData.standardProtected') }}
-                </v-tooltip>
               </template>
             </div>
           </template>
@@ -161,9 +152,8 @@
           </template>
           <template #[`item.actions`]="{ item }">
             <div class="d-flex justify-end">
-              <!-- Standard classes cannot be edited/deleted -->
+              <v-btn icon="mdi-pencil" variant="text" size="small" @click="openClassDialog(item)" />
               <template v-if="!item.is_standard">
-                <v-btn icon="mdi-pencil" variant="text" size="small" @click="openClassDialog(item)" />
                 <v-btn
                   icon="mdi-delete"
                   variant="text"
@@ -171,14 +161,6 @@
                   color="error"
                   @click="deleteClass(item)"
                 />
-              </template>
-              <template v-else>
-                <v-tooltip location="top">
-                  <template #activator="{ props }">
-                    <v-icon v-bind="props" icon="mdi-lock" size="small" color="grey" class="mr-2" />
-                  </template>
-                  {{ $t('referenceData.standardProtected') }}
-                </v-tooltip>
               </template>
             </div>
           </template>
@@ -236,13 +218,14 @@
         <v-card-text>
           <v-text-field
             v-model="raceForm.name"
-            :label="$t('referenceData.name')"
+            :label="$t('referenceData.internalKey')"
             :rules="keyRules"
             variant="outlined"
             :hint="$t('referenceData.keyHint')"
             persistent-hint
             maxlength="20"
             class="mb-4"
+            :readonly="!!editingRace?.is_standard"
             @input="raceForm.name = sanitizeKey(raceForm.name)"
           />
 
@@ -265,6 +248,12 @@
             variant="outlined"
             class="mb-4"
           />
+          <v-text-field
+            v-model="raceForm.name_zh"
+            label="名称（中文）"
+            variant="outlined"
+            class="mb-4"
+          />
 
           <v-alert type="info" density="compact" class="mb-4">
             {{ $t('referenceData.translationHint') }}
@@ -275,6 +264,7 @@
             :label="$t('referenceData.description')"
             variant="outlined"
             rows="3"
+            :readonly="!!editingRace?.is_standard"
           />
         </v-card-text>
         <v-card-actions>
@@ -298,13 +288,14 @@
         <v-card-text>
           <v-text-field
             v-model="classForm.name"
-            :label="$t('referenceData.name')"
+            :label="$t('referenceData.internalKey')"
             :rules="keyRules"
             variant="outlined"
             :hint="$t('referenceData.keyHint')"
             persistent-hint
             maxlength="20"
             class="mb-4"
+            :readonly="!!editingClass?.is_standard"
             @input="classForm.name = sanitizeKey(classForm.name)"
           />
 
@@ -328,6 +319,12 @@
             variant="outlined"
             class="mb-4"
           />
+          <v-text-field
+            v-model="classForm.name_zh"
+            label="名称（中文）"
+            variant="outlined"
+            class="mb-4"
+          />
 
           <v-alert type="info" variant="tonal" density="compact" class="mb-4">
             {{ $t('referenceData.translationHint') }}
@@ -338,6 +335,7 @@
             :label="$t('referenceData.description')"
             variant="outlined"
             rows="3"
+            :readonly="!!editingClass?.is_standard"
           />
         </v-card-text>
         <v-card-actions>
@@ -478,6 +476,7 @@ interface ReferenceData {
   name: string
   name_de?: string | null
   name_en?: string | null
+  name_zh?: string | null
   is_standard?: number
   description: string | null
   created_at: string
@@ -537,13 +536,19 @@ const {
 
 // Table headers
 const raceHeaders = [
-  { title: t('referenceData.name'), key: 'name', sortable: true },
+  { title: t('referenceData.internalKey'), key: 'name', sortable: true },
+  { title: 'Deutsch', key: 'name_de', sortable: true },
+  { title: 'English', key: 'name_en', sortable: true },
+  { title: '中文', key: 'name_zh', sortable: true },
   { title: t('referenceData.description'), key: 'description', sortable: false },
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ]
 
 const classHeaders = [
-  { title: t('referenceData.name'), key: 'name', sortable: true },
+  { title: t('referenceData.internalKey'), key: 'name', sortable: true },
+  { title: 'Deutsch', key: 'name_de', sortable: true },
+  { title: 'English', key: 'name_en', sortable: true },
+  { title: '中文', key: 'name_zh', sortable: true },
   { title: t('referenceData.description'), key: 'description', sortable: false },
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ]
@@ -763,6 +768,7 @@ const raceForm = ref({
   name: '',
   name_de: '',
   name_en: '',
+  name_zh: '',
   description: '',
 })
 
@@ -773,6 +779,7 @@ const classForm = ref({
   name: '',
   name_de: '',
   name_en: '',
+  name_zh: '',
   description: '',
 })
 
@@ -799,6 +806,7 @@ function openRaceDialog(race?: ReferenceData) {
       name: race.name,
       name_de: race.name_de || '',
       name_en: race.name_en || '',
+      name_zh: race.name_zh || '',
       description: race.description || '',
     }
   }
@@ -808,6 +816,7 @@ function openRaceDialog(race?: ReferenceData) {
       name: '',
       name_de: '',
       name_en: '',
+      name_zh: '',
       description: '',
     }
   }
@@ -821,6 +830,7 @@ function closeRaceDialog() {
     name: '',
     name_de: '',
     name_en: '',
+    name_zh: '',
     description: '',
   }
 }
@@ -832,6 +842,7 @@ function openClassDialog(classData?: ReferenceData) {
       name: classData.name,
       name_de: classData.name_de || '',
       name_en: classData.name_en || '',
+      name_zh: classData.name_zh || '',
       description: classData.description || '',
     }
   }
@@ -841,6 +852,7 @@ function openClassDialog(classData?: ReferenceData) {
       name: '',
       name_de: '',
       name_en: '',
+      name_zh: '',
       description: '',
     }
   }
@@ -854,6 +866,7 @@ function closeClassDialog() {
     name: '',
     name_de: '',
     name_en: '',
+    name_zh: '',
     description: '',
   }
 }
@@ -865,7 +878,9 @@ async function saveRace() {
     if (editingRace.value) {
       await $fetch(`/api/races/${editingRace.value.id}`, {
         method: 'PATCH',
-        body: raceForm.value,
+        body: editingRace.value.is_standard
+          ? { name_de: raceForm.value.name_de, name_en: raceForm.value.name_en, name_zh: raceForm.value.name_zh }
+          : raceForm.value,
       })
       successMessage.value = t('referenceData.races') + ' ' + t('common.save').toLowerCase()
     }
@@ -898,7 +913,9 @@ async function saveClass() {
     if (editingClass.value) {
       await $fetch(`/api/classes/${editingClass.value.id}`, {
         method: 'PATCH',
-        body: classForm.value,
+        body: editingClass.value.is_standard
+          ? { name_de: classForm.value.name_de, name_en: classForm.value.name_en, name_zh: classForm.value.name_zh }
+          : classForm.value,
       })
       successMessage.value = t('referenceData.classes') + ' ' + t('common.save').toLowerCase()
     }

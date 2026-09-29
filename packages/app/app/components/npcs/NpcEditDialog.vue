@@ -694,8 +694,8 @@ const addingItem = ref(false)
 const loadingLore = ref(false)
 
 // Reference data - loaded from API/store
-const races = ref<Array<{ name: string, name_de?: string | null, name_en?: string | null }>>([])
-const classes = ref<Array<{ name: string, name_de?: string | null, name_en?: string | null }>>([])
+const races = ref<Array<{ name: string, name_de?: string | null, name_en?: string | null, name_zh?: string | null }>>([])
+const classes = ref<Array<{ name: string, name_de?: string | null, name_en?: string | null, name_zh?: string | null }>>([])
 
 // Image management
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -716,7 +716,7 @@ const previewImageTitle = ref('')
 const raceItems = computed(() =>
   races.value
     .map(race => ({
-      title: locale.value === 'de' ? (race.name_de || race.name) : (race.name_en || race.name),
+      title: getLocalizedReferenceName(race, locale.value),
       value: race.name,
     }))
     .sort((a, b) => a.title.localeCompare(b.title)),
@@ -725,7 +725,7 @@ const raceItems = computed(() =>
 const classItems = computed(() =>
   classes.value
     .map(cls => ({
-      title: locale.value === 'de' ? (cls.name_de || cls.name) : (cls.name_en || cls.name),
+      title: getLocalizedReferenceName(cls, locale.value),
       value: cls.name,
     }))
     .sort((a, b) => a.title.localeCompare(b.title)),
@@ -833,8 +833,8 @@ async function loadData(npcId: number | null | undefined) {
 async function loadReferenceData() {
   try {
     const [racesData, classesData] = await Promise.all([
-      $fetch<Array<{ name: string, name_de?: string | null, name_en?: string | null }>>('/api/races'),
-      $fetch<Array<{ name: string, name_de?: string | null, name_en?: string | null }>>('/api/classes'),
+      $fetch<Array<{ name: string, name_de?: string | null, name_en?: string | null, name_zh?: string | null }>>('/api/races'),
+      $fetch<Array<{ name: string, name_de?: string | null, name_en?: string | null, name_zh?: string | null }>>('/api/classes'),
     ])
     races.value = racesData
     classes.value = classesData

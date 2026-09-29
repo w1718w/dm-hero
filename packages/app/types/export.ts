@@ -212,6 +212,9 @@ export interface CampaignExportManifest {
 
 export interface ExportTag {
   name: string
+  name_de?: string
+  name_en?: string
+  name_zh?: string
   color: string | null
 }
 
@@ -558,6 +561,7 @@ export interface ExportRace {
   name: string // Key (e.g., "halfdragon") - PRIMARY identifier for conflict detection
   name_de?: string // German display name
   name_en?: string // English display name
+  name_zh?: string // Chinese display name
   description?: string
 }
 
@@ -570,6 +574,7 @@ export interface ExportClass {
   name: string // Key (e.g., "shadowdancer") - PRIMARY identifier for conflict detection
   name_de?: string // German display name
   name_en?: string // English display name
+  name_zh?: string // Chinese display name
   description?: string
 }
 
@@ -583,11 +588,13 @@ export interface RaceClassConflict {
   imported: {
     name_de?: string
     name_en?: string
+    name_zh?: string
     description?: string
   }
   existing: {
     name_de?: string
     name_en?: string
+    name_zh?: string
     description?: string
   }
   isStandard: boolean // True if this is now a standard race/class (no import needed)

@@ -13,10 +13,10 @@ export default defineEventHandler(async (event): Promise<Tag> => {
     throw createApiError({ statusCode: 400, code: ErrorCodes.VALIDATION_FAILED, message: 'invalid id' })
   }
 
-  const body = await readBody<{ name?: string, color?: string }>(event)
+  const body = await readBody<{ name?: string, name_de?: string | null, name_en?: string | null, name_zh?: string | null, color?: string }>(event)
   const db = getDb()
 
-  const existing = db.prepare('SELECT id, name, color FROM tags WHERE id = ? AND deleted_at IS NULL').get(id) as Tag | undefined
+  const existing = db.prepare('SELECT id, name, name_de, name_en, name_zh, color FROM tags WHERE id = ? AND deleted_at IS NULL').get(id) as Tag | undefined
   if (!existing) {
     throw createApiError({ statusCode: 404, code: ErrorCodes.NOT_FOUND, message: 'tag not found' })
   }
@@ -47,10 +47,17 @@ export default defineEventHandler(async (event): Promise<Tag> => {
     params.push(body.color)
   }
 
+  for (const field of ['name_de', 'name_en', 'name_zh'] as const) {
+    if (body[field] !== undefined) {
+      updates.push(`${field} = ?`)
+      params.push(body[field]?.trim() || '')
+    }
+  }
+
   if (updates.length === 0) return existing
 
   params.push(id)
   db.prepare(`UPDATE tags SET ${updates.join(', ')} WHERE id = ?`).run(...params)
 
-  return db.prepare('SELECT id, name, color FROM tags WHERE id = ?').get(id) as Tag
+  return db.prepare('SELECT id, name, name_de, name_en, name_zh, color FROM tags WHERE id = ?').get(id) as Tag
 })

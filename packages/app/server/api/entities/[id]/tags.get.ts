@@ -7,7 +7,7 @@ export default defineEventHandler((event): Tag[] => {
 
   const db = getDb()
   return db.prepare(`
-    SELECT t.id, t.name, t.color
+    SELECT t.id, t.name, t.name_de, t.name_en, t.name_zh, t.color
     FROM tags t
     JOIN entity_tags et ON et.tag_id = t.id
     WHERE et.entity_id = ? AND t.deleted_at IS NULL

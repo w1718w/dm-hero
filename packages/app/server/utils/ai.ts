@@ -1,30 +1,28 @@
 import { getDb } from './db'
 import { decrypt } from './encryption'
+import { getOpenAiCompatibleUrls, normalizeAiBaseUrl } from './ai-url'
 
 // Supported AI providers
 export type AiProviderType = 'openai' | 'gemini'
 
 // Provider configuration map — add new providers here
 const PROVIDERS: Record<AiProviderType, {
-  chatUrl: string
+  baseUrl: string
   defaultModel: string
   modelSettingsKey: string
   settingsKey: string
-  testUrl: string
 }> = {
   openai: {
-    chatUrl: 'https://api.openai.com/v1/chat/completions',
+    baseUrl: 'https://api.openai.com/v1',
     defaultModel: 'gpt-4o-mini',
     modelSettingsKey: 'openai_model',
     settingsKey: 'openai_api_key',
-    testUrl: 'https://api.openai.com/v1/models',
   },
   gemini: {
-    chatUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     defaultModel: 'gemini-2.5-flash',
     modelSettingsKey: 'gemini_model',
     settingsKey: 'gemini_api_key',
-    testUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/models',
   },
 }
 
@@ -43,7 +41,7 @@ interface ImageGenerationOptions {
 }
 
 // Read active provider + API key + model from DB
-function getActiveProvider(): { provider: AiProviderType, apiKey: string, model: string, config: typeof PROVIDERS[AiProviderType] } {
+function getActiveProvider(): { provider: AiProviderType, apiKey: string, model: string, baseUrl: string } {
   const db = getDb()
 
   // Read provider setting (default: openai for backward compat)
@@ -58,6 +56,15 @@ function getActiveProvider(): { provider: AiProviderType, apiKey: string, model:
   }
 
   const config = PROVIDERS[provider]
+  let baseUrl = config.baseUrl
+  const baseUrlKey = `${provider}_base_url`
+  const baseUrlRow = db.prepare('SELECT value FROM settings WHERE key = ?').get(baseUrlKey) as { value: string } | undefined
+  if (baseUrlRow?.value) {
+    try {
+      baseUrl = normalizeAiBaseUrl(decrypt(baseUrlRow.value))
+    }
+    catch { /* Invalid legacy setting — use provider default */ }
+  }
 
   // Read API key
   const keyRow = db.prepare('SELECT value FROM settings WHERE key = ?').get(config.settingsKey) as { value: string } | undefined
@@ -87,15 +94,16 @@ function getActiveProvider(): { provider: AiProviderType, apiKey: string, model:
     catch { /* Decryption failed — use default model */ }
   }
 
-  return { provider, apiKey, model, config }
+  return { provider, apiKey, model, baseUrl }
 }
 
 // Text generation — OpenAI-compatible format for all providers
 export async function chatCompletion(messages: ChatMessage[], options?: ChatCompletionOptions): Promise<string> {
-  const { apiKey, model, config } = getActiveProvider()
-  console.log(`[AI] chatCompletion → ${config.chatUrl} model=${model}`)
+  const { apiKey, model, baseUrl } = getActiveProvider()
+  const { chatUrl } = getOpenAiCompatibleUrls(baseUrl)
+  console.log(`[AI] chatCompletion → ${chatUrl} model=${model}`)
 
-  const response = await fetch(config.chatUrl, {
+  const response = await fetch(chatUrl, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -132,19 +140,19 @@ export async function chatCompletion(messages: ChatMessage[], options?: ChatComp
 
 // Image generation — provider-specific implementations
 export async function generateImage(prompt: string, options?: ImageGenerationOptions): Promise<Buffer> {
-  const { provider, apiKey } = getActiveProvider()
+  const { provider, apiKey, baseUrl } = getActiveProvider()
 
   if (provider === 'gemini') {
     return generateImageImagen(apiKey, prompt, options)
   }
-  return generateImageDallE(apiKey, prompt, options)
+  return generateImageDallE(apiKey, baseUrl, prompt, options)
 }
 
 // OpenAI DALL-E 3: POST /v1/images/generations → download URL → Buffer
-async function generateImageDallE(apiKey: string, prompt: string, options?: ImageGenerationOptions): Promise<Buffer> {
+async function generateImageDallE(apiKey: string, baseUrl: string, prompt: string, options?: ImageGenerationOptions): Promise<Buffer> {
   const size = options?.aspectRatio === '16:9' ? '1792x1024' : '1024x1024'
 
-  const response = await fetch('https://api.openai.com/v1/images/generations', {
+  const response = await fetch(getOpenAiCompatibleUrls(baseUrl).imagesUrl, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -225,27 +233,28 @@ async function generateImageImagen(apiKey: string, prompt: string, options?: Ima
 }
 
 // Test connection for a specific provider (optionally with a test key)
-export async function testAiConnection(providerType?: AiProviderType, testApiKey?: string): Promise<{
+export async function testAiConnection(providerType?: AiProviderType, testApiKey?: string, testBaseUrl?: string): Promise<{
   success: boolean
   message: string
   modelsAvailable?: number
 }> {
   let provider: AiProviderType
   let apiKey: string
+  let baseUrl: string
 
   if (testApiKey && providerType) {
     provider = providerType
     apiKey = testApiKey
+    baseUrl = testBaseUrl ? normalizeAiBaseUrl(testBaseUrl) : PROVIDERS[provider].baseUrl
   }
   else {
     const active = getActiveProvider()
     provider = active.provider
     apiKey = active.apiKey
+    baseUrl = active.baseUrl
   }
 
-  const config = PROVIDERS[provider]
-
-  const response = await fetch(config.testUrl, {
+  const response = await fetch(getOpenAiCompatibleUrls(baseUrl).modelsUrl, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,

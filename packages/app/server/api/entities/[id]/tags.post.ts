@@ -32,7 +32,7 @@ export default defineEventHandler(async (event): Promise<Tag> => {
   let tagRow: Tag | undefined
 
   if (body?.tagId) {
-    tagRow = db.prepare('SELECT id, name, color FROM tags WHERE id = ? AND deleted_at IS NULL').get(body.tagId) as Tag | undefined
+    tagRow = db.prepare('SELECT id, name, name_de, name_en, name_zh, color FROM tags WHERE id = ? AND deleted_at IS NULL').get(body.tagId) as Tag | undefined
     if (!tagRow) {
       throw createApiError({ statusCode: 404, code: ErrorCodes.NOT_FOUND, message: 'tag not found' })
     }
@@ -44,13 +44,13 @@ export default defineEventHandler(async (event): Promise<Tag> => {
     }
     const color = body?.color && isValidTagColor(body.color) ? body.color : DEFAULT_TAG_COLOR
 
-    const existing = db.prepare('SELECT id, name, color, deleted_at FROM tags WHERE name = ?').get(name) as (Tag & { deleted_at?: string | null }) | undefined
+    const existing = db.prepare('SELECT id, name, name_de, name_en, name_zh, color, deleted_at FROM tags WHERE name = ?').get(name) as (Tag & { deleted_at?: string | null }) | undefined
     if (existing) {
       // Revive if soft-deleted
       if (existing.deleted_at) {
         db.prepare('UPDATE tags SET color = ?, deleted_at = NULL WHERE id = ?').run(color, existing.id)
       }
-      tagRow = { id: existing.id, name: existing.name, color: existing.color }
+      tagRow = existing
     }
     else {
       const result = db.prepare('INSERT INTO tags (name, color) VALUES (?, ?)').run(name, color)

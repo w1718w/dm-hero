@@ -3,6 +3,9 @@ import { getDb } from '../../utils/db'
 export interface TagWithUsage {
   id: number
   name: string
+  name_de: string | null
+  name_en: string | null
+  name_zh: string | null
   color: string | null
   usage_count: number
 }
@@ -14,6 +17,9 @@ export default defineEventHandler((): TagWithUsage[] => {
     SELECT
       t.id,
       t.name,
+      t.name_de,
+      t.name_en,
+      t.name_zh,
       t.color,
       -- Count via e.id so soft-deleted entities (NULLed by the LEFT JOIN below)
       -- don't inflate the number.

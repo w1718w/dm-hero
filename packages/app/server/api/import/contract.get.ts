@@ -19,8 +19,8 @@ import { FACTION_TYPES, FACTION_RELATION_TYPES } from '~~/types/faction'
 export default defineEventHandler(() => {
   const db = getDb()
 
-  const races = db.prepare('SELECT key, name_de, name_en FROM races WHERE deleted_at IS NULL ORDER BY name').all() as Array<{ key: string, name_de: string | null, name_en: string | null }>
-  const classes = db.prepare('SELECT key, name_de, name_en FROM classes WHERE deleted_at IS NULL ORDER BY name').all() as Array<{ key: string, name_de: string | null, name_en: string | null }>
+  const races = db.prepare('SELECT name AS key, name_de, name_en, name_zh FROM races WHERE deleted_at IS NULL ORDER BY name').all() as Array<{ key: string, name_de: string | null, name_en: string | null, name_zh: string | null }>
+  const classes = db.prepare('SELECT name AS key, name_de, name_en, name_zh FROM classes WHERE deleted_at IS NULL ORDER BY name').all() as Array<{ key: string, name_de: string | null, name_en: string | null, name_zh: string | null }>
   const itemTypes = db.prepare('SELECT name, name_de, name_en FROM item_types WHERE deleted_at IS NULL ORDER BY name').all() as Array<{ name: string, name_de: string | null, name_en: string | null }>
   const itemRarities = db.prepare('SELECT name, name_de, name_en FROM item_rarities WHERE deleted_at IS NULL ORDER BY name').all() as Array<{ name: string, name_de: string | null, name_en: string | null }>
 

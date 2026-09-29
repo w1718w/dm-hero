@@ -397,7 +397,8 @@ const races = ref<
     name: string
     name_de?: string | null
     name_en?: string | null
-    key: string
+    name_zh?: string | null
+    key?: string
     description: string
   }>
 >([])
@@ -407,7 +408,8 @@ const classes = ref<
     name: string
     name_de?: string | null
     name_en?: string | null
-    key: string
+    name_zh?: string | null
+    key?: string
     description: string
   }>
 >([])
@@ -421,7 +423,8 @@ async function loadReferenceData() {
         name: string
         name_de?: string | null
         name_en?: string | null
-        key: string
+        name_zh?: string | null
+        key?: string
         description: string
       }>
     >('/api/races'),
@@ -431,7 +434,8 @@ async function loadReferenceData() {
         name: string
         name_de?: string | null
         name_en?: string | null
-        key: string
+        name_zh?: string | null
+        key?: string
         description: string
       }>
     >('/api/classes'),
@@ -708,18 +712,18 @@ function closeFolder() {
 // Compact-card mapping: NPC → { id, name, image_url, subtitle: race · class }
 function lookupRaceLabel(key: string | undefined): string {
   if (!key) return ''
-  const r = races.value.find(x => x.key === key)
+  const r = races.value.find(x => x.name === key || x.key === key)
   if (!r) return key
-  return (locale.value === 'de' ? r.name_de : r.name_en) ?? r.name
+  return getLocalizedReferenceName(r, locale.value)
 }
 
 function lookupClassLabels(val: string | string[] | undefined): string {
   if (!val) return ''
   const arr = Array.isArray(val) ? val : [val]
   return arr.map((k) => {
-    const c = classes.value.find(x => x.key === k)
+    const c = classes.value.find(x => x.name === k || x.key === k)
     if (!c) return k
-    return (locale.value === 'de' ? c.name_de : c.name_en) ?? c.name
+    return getLocalizedReferenceName(c, locale.value)
   }).join(', ')
 }
 

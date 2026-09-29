@@ -288,14 +288,16 @@
                     <div class="text-body-small text-medium-emphasis">{{ $t('campaigns.import.imported') }}</div>
                     <div class="text-body-medium">
                       DE: {{ conflict.imported.name_de || '-' }}<br />
-                      EN: {{ conflict.imported.name_en || '-' }}
+                      EN: {{ conflict.imported.name_en || '-' }}<br />
+                      ZH: {{ conflict.imported.name_zh || '-' }}
                     </div>
                   </div>
                   <div class="flex-grow-1">
                     <div class="text-body-small text-medium-emphasis">{{ $t('campaigns.import.existing') }}</div>
                     <div class="text-body-medium">
                       DE: {{ conflict.existing.name_de || '-' }}<br />
-                      EN: {{ conflict.existing.name_en || '-' }}
+                      EN: {{ conflict.existing.name_en || '-' }}<br />
+                      ZH: {{ conflict.existing.name_zh || '-' }}
                     </div>
                   </div>
                 </div>

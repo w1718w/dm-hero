@@ -1,7 +1,9 @@
 import { getDb } from '../../utils/db'
+import { isStandardTranslationOnlyUpdate } from '../../utils/reference-data'
 
 interface ClassRow {
   id: number
+  name: string
   is_standard: number
 }
 
@@ -17,13 +19,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { name, name_de, name_en, description } = body
+  const { name, name_de, name_en, name_zh, description } = body
 
   // Check if class exists
   const existing = db
     .prepare<unknown[], ClassRow>(
       `
-    SELECT id, is_standard FROM classes WHERE id = ? AND deleted_at IS NULL
+    SELECT id, name, is_standard FROM classes WHERE id = ? AND deleted_at IS NULL
   `,
     )
     .get(id)
@@ -35,11 +37,11 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Prevent editing standard classes
-  if (existing.is_standard) {
+  // Standard keys and descriptions are immutable; translations remain editable.
+  if (existing.is_standard && !isStandardTranslationOnlyUpdate(existing.name, body)) {
     throw createError({
       statusCode: 403,
-      message: 'Standard classes cannot be edited',
+      message: 'Standard class keys and descriptions cannot be edited',
     })
   }
 
@@ -68,10 +70,11 @@ export default defineEventHandler(async (event) => {
       name = COALESCE(?, name),
       name_de = COALESCE(?, name_de),
       name_en = COALESCE(?, name_en),
+      name_zh = COALESCE(?, name_zh),
       description = COALESCE(?, description)
     WHERE id = ? AND deleted_at IS NULL
   `,
-  ).run(name, name_de, name_en, description, id)
+  ).run(existing.is_standard ? null : name, name_de, name_en, name_zh, description, id)
 
   const classData = db
     .prepare(

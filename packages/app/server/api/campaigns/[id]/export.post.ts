@@ -234,21 +234,21 @@ export default defineEventHandler(async (event) => {
   //   2. Build per-entity name lists + the global palette (name + color).
   // Tags are global (not campaign-scoped), so name is the natural identity.
   const tagsByEntity = new Map<number, string[]>()
-  const tagPalette = new Map<string, string | null>()
+  const tagPalette = new Map<string, { color: string | null, name_de: string | null, name_en: string | null, name_zh: string | null }>()
   if (entityIdSet.size > 0) {
     const tagPlaceholders = [...entityIdSet].map(() => '?').join(',')
     const tagRows = db.prepare(`
-      SELECT et.entity_id, t.name, t.color
+      SELECT et.entity_id, t.name, t.name_de, t.name_en, t.name_zh, t.color
       FROM entity_tags et
       JOIN tags t ON t.id = et.tag_id
       WHERE et.entity_id IN (${tagPlaceholders}) AND t.deleted_at IS NULL
       ORDER BY t.name COLLATE NOCASE
-    `).all(...entityIdSet) as Array<{ entity_id: number, name: string, color: string | null }>
+    `).all(...entityIdSet) as Array<{ entity_id: number, name: string, name_de: string | null, name_en: string | null, name_zh: string | null, color: string | null }>
     for (const row of tagRows) {
       const list = tagsByEntity.get(row.entity_id) ?? []
       list.push(row.name)
       tagsByEntity.set(row.entity_id, list)
-      if (!tagPalette.has(row.name)) tagPalette.set(row.name, row.color)
+      if (!tagPalette.has(row.name)) tagPalette.set(row.name, row)
     }
   }
 
@@ -282,7 +282,13 @@ export default defineEventHandler(async (event) => {
 
   // Global tag palette referenced by the entity tag lists above.
   const exportTags = tagPalette.size > 0
-    ? [...tagPalette.entries()].map(([name, color]) => ({ name, color }))
+    ? [...tagPalette.entries()].map(([name, tag]) => ({
+        name,
+        color: tag.color,
+        name_de: tag.name_de || undefined,
+        name_en: tag.name_en || undefined,
+        name_zh: tag.name_zh || undefined,
+      }))
     : undefined
 
   // Folder list referenced by exported entities. Phase 1 emits parent_name as
@@ -1060,15 +1066,15 @@ export default defineEventHandler(async (event) => {
   let exportRaces: ExportRace[] = []
   if (customRaceKeys.size > 0) {
     const placeholders = Array.from(customRaceKeys).map(() => '?').join(',')
-    const races = db.prepare(`SELECT name, name_de, name_en, description FROM races WHERE LOWER(name) IN (${placeholders}) AND deleted_at IS NULL`).all(...customRaceKeys) as Array<{ name: string, name_de: string | null, name_en: string | null, description: string | null }>
-    exportRaces = races.map(r => ({ name: r.name, name_de: r.name_de || undefined, name_en: r.name_en || undefined, description: r.description || undefined }))
+    const races = db.prepare(`SELECT name, name_de, name_en, name_zh, description FROM races WHERE LOWER(name) IN (${placeholders}) AND deleted_at IS NULL`).all(...customRaceKeys) as Array<{ name: string, name_de: string | null, name_en: string | null, name_zh: string | null, description: string | null }>
+    exportRaces = races.map(r => ({ name: r.name, name_de: r.name_de || undefined, name_en: r.name_en || undefined, name_zh: r.name_zh || undefined, description: r.description || undefined }))
   }
 
   let exportClasses: ExportClass[] = []
   if (customClassKeys.size > 0) {
     const placeholders = Array.from(customClassKeys).map(() => '?').join(',')
-    const classes = db.prepare(`SELECT name, name_de, name_en, description FROM classes WHERE LOWER(name) IN (${placeholders}) AND deleted_at IS NULL`).all(...customClassKeys) as Array<{ name: string, name_de: string | null, name_en: string | null, description: string | null }>
-    exportClasses = classes.map(c => ({ name: c.name, name_de: c.name_de || undefined, name_en: c.name_en || undefined, description: c.description || undefined }))
+    const classes = db.prepare(`SELECT name, name_de, name_en, name_zh, description FROM classes WHERE LOWER(name) IN (${placeholders}) AND deleted_at IS NULL`).all(...customClassKeys) as Array<{ name: string, name_de: string | null, name_en: string | null, name_zh: string | null, description: string | null }>
+    exportClasses = classes.map(c => ({ name: c.name, name_de: c.name_de || undefined, name_en: c.name_en || undefined, name_zh: c.name_zh || undefined, description: c.description || undefined }))
   }
 
   // ==========================================================================

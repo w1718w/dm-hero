@@ -62,6 +62,9 @@
             autofocus
             @input="onNameInput"
           />
+          <v-text-field v-model="form.name_de" label="Deutsch" variant="outlined" density="comfortable" />
+          <v-text-field v-model="form.name_en" label="English" variant="outlined" density="comfortable" />
+          <v-text-field v-model="form.name_zh" label="中文" variant="outlined" density="comfortable" />
 
           <div id="tag-color-picker-label" class="mt-4 mb-1 text-body-medium">
             {{ $t('tags.manage.colorLabel') }}
@@ -144,7 +147,7 @@ const palette = TAG_COLORS
 
 const formDialog = ref(false)
 const editing = ref<Tag | null>(null)
-const form = ref<{ name: string, color: string }>({ name: '', color: DEFAULT_TAG_COLOR })
+const form = ref({ name: '', name_de: '', name_en: '', name_zh: '', color: DEFAULT_TAG_COLOR })
 const saving = ref(false)
 
 const deleteDialog = ref(false)
@@ -169,6 +172,9 @@ const isFormValid = computed(() => {
 const previewTag = computed<Tag>(() => ({
   id: -1,
   name: normaliseTagName(form.value.name) || 'tag',
+  name_de: form.value.name_de,
+  name_en: form.value.name_en,
+  name_zh: form.value.name_zh,
   color: form.value.color,
 }))
 
@@ -194,13 +200,19 @@ async function load() {
 
 function openCreate() {
   editing.value = null
-  form.value = { name: '', color: DEFAULT_TAG_COLOR }
+  form.value = { name: '', name_de: '', name_en: '', name_zh: '', color: DEFAULT_TAG_COLOR }
   formDialog.value = true
 }
 
 function openEdit(tag: TagWithUsage) {
   editing.value = tag
-  form.value = { name: tag.name, color: tag.color || DEFAULT_TAG_COLOR }
+  form.value = {
+    name: tag.name,
+    name_de: tag.name_de || '',
+    name_en: tag.name_en || '',
+    name_zh: tag.name_zh || '',
+    color: tag.color || DEFAULT_TAG_COLOR,
+  }
   formDialog.value = true
 }
 
@@ -212,7 +224,7 @@ function closeForm() {
 async function save() {
   saving.value = true
   try {
-    const body = { name: form.value.name, color: form.value.color }
+    const body = { ...form.value }
     if (editing.value) {
       await $fetch(`/api/tags/${editing.value.id}`, { method: 'PATCH', body })
       snackbarStore.success(t('tags.manage.updated'))

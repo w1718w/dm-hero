@@ -4,13 +4,14 @@ import { testAiConnection } from '../../utils/ai'
 interface TestAiRequest {
   provider?: AiProviderType
   apiKey?: string
+  baseUrl?: string
 }
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<TestAiRequest>(event)
 
   try {
-    return await testAiConnection(body?.provider, body?.apiKey?.trim())
+    return await testAiConnection(body?.provider, body?.apiKey?.trim(), body?.baseUrl?.trim())
   }
   catch (error) {
     const err = error as { statusCode?: number, message?: string }

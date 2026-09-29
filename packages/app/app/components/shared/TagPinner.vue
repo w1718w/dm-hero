@@ -50,7 +50,7 @@
             <template #prepend>
               <span class="tag-pinner__swatch" :style="{ background: t.color || '#999' }" />
             </template>
-            <v-list-item-title>#{{ t.name }}</v-list-item-title>
+            <v-list-item-title>#{{ getLocalizedTagName(t, locale) }}</v-list-item-title>
             <template #append>
               <span class="text-body-small text-medium-emphasis">{{ t.usage_count }}</span>
             </template>
@@ -95,6 +95,7 @@ const props = withDefaults(defineProps<{
 })
 
 const tagsStore = useTagsStore()
+const { locale } = useI18n()
 
 const search = ref('')
 const busy = ref(false)
@@ -119,7 +120,7 @@ const filteredCandidates = computed(() => {
   const taken = new Set(tags.value.map(t => t.id))
   return tagsStore.catalogue
     .filter(t => !taken.has(t.id))
-    .filter(t => !term || t.name.includes(term))
+    .filter(t => !term || [t.name, t.name_de, t.name_en, t.name_zh].some(name => name?.toLowerCase().includes(term)))
     .slice(0, 50)
 })
 

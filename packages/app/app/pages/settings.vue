@@ -66,6 +66,18 @@
             </template>
           </v-text-field>
 
+          <v-text-field
+            v-if="aiProvider === 'openai'"
+            v-model="openaiBaseUrl"
+            :label="$t('settings.ai.baseUrl')"
+            :hint="$t('settings.ai.baseUrlHint')"
+            placeholder="https://api.openai.com/v1"
+            variant="outlined"
+            density="comfortable"
+            class="mb-4"
+            persistent-hint
+          />
+
           <!-- Gemini API Key -->
           <v-text-field
             v-model="geminiApiKey"
@@ -403,6 +415,7 @@ const aiProvider = ref<'openai' | 'gemini'>('openai')
 const openaiApiKey = ref('')
 const geminiApiKey = ref('')
 const openaiModel = ref('gpt-4o-mini')
+const openaiBaseUrl = ref('https://api.openai.com/v1')
 const geminiModel = ref('gemini-2.5-flash')
 const showOpenaiKey = ref(false)
 const showGeminiKey = ref(false)
@@ -567,6 +580,7 @@ async function loadSettings() {
     openaiApiKey.value = settings.openai_api_key_full || ''
     geminiApiKey.value = settings.gemini_api_key_full || ''
     openaiModel.value = settings.openai_model || 'gpt-4o-mini'
+    openaiBaseUrl.value = settings.openai_base_url || 'https://api.openai.com/v1'
     geminiModel.value = settings.gemini_model || 'gemini-2.5-flash'
   }
   catch (error) {
@@ -586,6 +600,7 @@ async function saveSettings() {
         ai_provider: aiProvider.value,
         openai_api_key: openaiApiKey.value,
         openai_model: openaiModel.value,
+        openai_base_url: openaiBaseUrl.value,
         gemini_api_key: geminiApiKey.value,
         gemini_model: geminiModel.value,
       },
@@ -626,6 +641,7 @@ async function testConnection() {
       body: {
         provider: aiProvider.value,
         apiKey: activeApiKey.value,
+        baseUrl: aiProvider.value === 'openai' ? openaiBaseUrl.value : undefined,
       },
     })
 

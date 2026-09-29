@@ -2662,6 +2662,61 @@ export const migrations: Migration[] = [
       console.log('✅ Migration 54: Added sessions.music_links')
     },
   },
+  {
+    version: 55,
+    name: 'localized_reference_names',
+    up: (db) => {
+      const addColumn = (table: string, column: string) => {
+        const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+        if (!columns.some(existing => existing.name === column)) {
+          db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`)
+        }
+      }
+
+      addColumn('races', 'name_zh')
+      addColumn('classes', 'name_zh')
+      addColumn('tags', 'name_de')
+      addColumn('tags', 'name_en')
+      addColumn('tags', 'name_zh')
+
+      const raceNamesZh: Record<string, string> = {
+        'human': '人类', 'elf': '精灵', 'dwarf': '矮人', 'halfling': '半身人', 'gnome': '侏儒',
+        'halfelf': '半精灵', 'halforc': '半兽人', 'tiefling': '提夫林', 'dragonborn': '龙裔',
+        'drow': '卓尔精灵', 'woodelf': '木精灵', 'highelf': '高等精灵', 'eladrin': '艾拉德林',
+        'seaelf': '海精灵', 'shadarkai': '夏达-凯', 'mountaindwarf': '山地矮人', 'hilldwarf': '丘陵矮人',
+        'duergar': '灰矮人', 'lightfoothalfling': '轻足半身人', 'stouthalfling': '强心半身人',
+        'forestgnome': '森林侏儒', 'rockgnome': '岩石侏儒', 'deepgnome': '地底侏儒',
+        'aasimar': '阿西莫', 'goliath': '歌利亚', 'orc': '兽人', 'genasi': '气裔',
+        'firegenasi': '火气裔', 'watergenasi': '水气裔', 'earthgenasi': '土气裔', 'airgenasi': '风气裔',
+        'tabaxi': '塔巴西', 'kenku': '肯库', 'firbolg': '费尔伯格', 'triton': '特里同',
+        'yuan-ti': '袁蒂', 'tortle': '托特人', 'aarakocra': '鹰身人', 'warforged': '战锻人',
+        'changeling': '换形者', 'shifter': '变形者', 'kalashtar': '卡拉什塔', 'gith': '吉斯人',
+        'githyanki': '吉斯洋基', 'githzerai': '吉斯泽莱', 'satyr': '萨提', 'centaur': '半人马',
+        'minotaur': '牛头人', 'loxodon': '洛索丹', 'vedalken': '维达肯', 'simic': '西密混种',
+        'fairy': '仙灵', 'harengon': '哈林贡', 'owlin': '猫头鹰人', 'autognome': '自动侏儒',
+        'hadozee': '哈多齐', 'plasmoid': '胶怪人', 'thrikreen': '螳螂人', 'goblin': '地精',
+        'kobold': '狗头人', 'hobgoblin': '大地精', 'bugbear': '熊地精', 'lizardfolk': '蜥蜴人', 'grung': '格朗人',
+      }
+      const classNamesZh: Record<string, string> = {
+        barbarian: '野蛮人', bard: '吟游诗人', cleric: '牧师', druid: '德鲁伊', fighter: '战士',
+        monk: '武僧', paladin: '圣骑士', ranger: '游侠', rogue: '游荡者', sorcerer: '术士',
+        warlock: '邪术师', wizard: '法师', artificer: '工匠', bloodhunter: '血猎人', knight: '骑士',
+        assassin: '刺客', priest: '祭司', acolyte: '侍僧', merchant: '商人', noble: '贵族', guard: '守卫',
+        soldier: '士兵', spy: '间谍', thief: '盗贼', commoner: '平民', scholar: '学者',
+        alchemist: '炼金术士', necromancer: '死灵法师', battlemage: '战斗法师', healer: '治疗师',
+        blacksmith: '铁匠', innkeeper: '旅店老板', hunter: '猎人', sailor: '水手', pirate: '海盗',
+        cultist: '邪教徒', bandit: '强盗',
+      }
+
+      const updateRace = db.prepare('UPDATE races SET name_zh = ? WHERE name = ? AND is_standard = 1')
+      for (const [key, translatedName] of Object.entries(raceNamesZh)) updateRace.run(translatedName, key)
+
+      const updateClass = db.prepare('UPDATE classes SET name_zh = ? WHERE name = ? AND is_standard = 1')
+      for (const [key, translatedName] of Object.entries(classNamesZh)) updateClass.run(translatedName, key)
+
+      console.log('✅ Migration 55: Added localized names for races, classes, and tags')
+    },
+  },
 ]
 
 export async function runMigrations(db: Database.Database) {

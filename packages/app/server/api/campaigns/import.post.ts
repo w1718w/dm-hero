@@ -450,10 +450,11 @@ export default defineEventHandler(async (event) => {
         }
 
         // Check if key exists in user's races table (not soft-deleted)
-        const existing = db.prepare('SELECT name, name_de, name_en, description FROM races WHERE name = ? AND deleted_at IS NULL').get(key) as {
+        const existing = db.prepare('SELECT name, name_de, name_en, name_zh, description FROM races WHERE name = ? AND deleted_at IS NULL').get(key) as {
           name: string
           name_de: string | null
           name_en: string | null
+          name_zh: string | null
           description: string | null
         } | undefined
 
@@ -462,8 +463,8 @@ export default defineEventHandler(async (event) => {
           raceClassConflicts.push({
             type: 'race',
             key,
-            imported: { name_de: race.name_de, name_en: race.name_en, description: race.description },
-            existing: { name_de: existing.name_de || undefined, name_en: existing.name_en || undefined, description: existing.description || undefined },
+            imported: { name_de: race.name_de, name_en: race.name_en, name_zh: race.name_zh, description: race.description },
+            existing: { name_de: existing.name_de || undefined, name_en: existing.name_en || undefined, name_zh: existing.name_zh || undefined, description: existing.description || undefined },
             isStandard: false,
           })
         }
@@ -481,10 +482,11 @@ export default defineEventHandler(async (event) => {
         }
 
         // Check if key exists in user's classes table (not soft-deleted)
-        const existing = db.prepare('SELECT name, name_de, name_en, description FROM classes WHERE name = ? AND deleted_at IS NULL').get(key) as {
+        const existing = db.prepare('SELECT name, name_de, name_en, name_zh, description FROM classes WHERE name = ? AND deleted_at IS NULL').get(key) as {
           name: string
           name_de: string | null
           name_en: string | null
+          name_zh: string | null
           description: string | null
         } | undefined
 
@@ -493,8 +495,8 @@ export default defineEventHandler(async (event) => {
           raceClassConflicts.push({
             type: 'class',
             key,
-            imported: { name_de: cls.name_de, name_en: cls.name_en, description: cls.description },
-            existing: { name_de: existing.name_de || undefined, name_en: existing.name_en || undefined, description: existing.description || undefined },
+            imported: { name_de: cls.name_de, name_en: cls.name_en, name_zh: cls.name_zh, description: cls.description },
+            existing: { name_de: existing.name_de || undefined, name_en: existing.name_en || undefined, name_zh: existing.name_zh || undefined, description: existing.description || undefined },
             isStandard: false,
           })
         }
@@ -840,11 +842,11 @@ export default defineEventHandler(async (event) => {
         }
       }
       // Add palette colors from manifest.tags for tags we'd otherwise have to create.
-      const importPalette = new Map<string, string | null>()
+      const importPalette = new Map<string, { color: string | null, name_de?: string, name_en?: string, name_zh?: string }>()
       if (manifest.tags) {
         for (const t of manifest.tags) {
           const normalised = normaliseTagName(t.name)
-          if (isValidTagName(normalised)) importPalette.set(normalised, t.color)
+          if (isValidTagName(normalised)) importPalette.set(normalised, t)
         }
       }
 
@@ -852,7 +854,7 @@ export default defineEventHandler(async (event) => {
         const tagIdByName = new Map<string, number>()
         const findExisting = db.prepare('SELECT id, deleted_at FROM tags WHERE name = ?')
         const reviveExisting = db.prepare('UPDATE tags SET deleted_at = NULL WHERE id = ?')
-        const insertNew = db.prepare('INSERT INTO tags (name, color) VALUES (?, ?)')
+        const insertNew = db.prepare('INSERT INTO tags (name, name_de, name_en, name_zh, color) VALUES (?, ?, ?, ?, ?)')
 
         for (const name of referencedTagNames) {
           const existing = findExisting.get(name) as { id: number, deleted_at: string | null } | undefined
@@ -862,9 +864,9 @@ export default defineEventHandler(async (event) => {
             tagIdByName.set(name, existing.id)
           }
           else {
-            const exportedColor = importPalette.get(name)
-            const color = exportedColor && isValidTagColor(exportedColor) ? exportedColor : DEFAULT_TAG_COLOR
-            const result = insertNew.run(name, color)
+            const importedTag = importPalette.get(name)
+            const color = importedTag?.color && isValidTagColor(importedTag.color) ? importedTag.color : DEFAULT_TAG_COLOR
+            const result = insertNew.run(name, importedTag?.name_de || null, importedTag?.name_en || null, importedTag?.name_zh || null, color)
             tagIdByName.set(name, Number(result.lastInsertRowid))
           }
         }
@@ -1590,24 +1592,24 @@ export default defineEventHandler(async (event) => {
 
         if (existing && existing.deleted_at) {
           // Soft-deleted: restore it with new data
-          db.prepare('UPDATE races SET name_de = ?, name_en = ?, description = ?, deleted_at = NULL WHERE name = ?')
-            .run(race.name_de || null, race.name_en || null, race.description || null, key)
+          db.prepare('UPDATE races SET name_de = ?, name_en = ?, name_zh = ?, description = ?, deleted_at = NULL WHERE name = ?')
+            .run(race.name_de || null, race.name_en || null, race.name_zh || null, race.description || null, key)
           stats.racesImported++
         }
         else if (existing) {
           // Active: check if conflict resolution provided
           const resolution = options.raceResolutions?.[key]
           if (resolution === 'overwrite') {
-            db.prepare('UPDATE races SET name_de = ?, name_en = ?, description = ? WHERE name = ?')
-              .run(race.name_de || null, race.name_en || null, race.description || null, key)
+            db.prepare('UPDATE races SET name_de = ?, name_en = ?, name_zh = ?, description = ? WHERE name = ?')
+              .run(race.name_de || null, race.name_en || null, race.name_zh || null, race.description || null, key)
             stats.racesImported++
           }
           // 'keep' or identical = do nothing, already exists
         }
         else {
           // Doesn't exist: insert new
-          db.prepare('INSERT INTO races (name, name_de, name_en, description) VALUES (?, ?, ?, ?)')
-            .run(key, race.name_de || null, race.name_en || null, race.description || null)
+          db.prepare('INSERT INTO races (name, name_de, name_en, name_zh, description) VALUES (?, ?, ?, ?, ?)')
+            .run(key, race.name_de || null, race.name_en || null, race.name_zh || null, race.description || null)
           stats.racesImported++
         }
       }
@@ -1631,24 +1633,24 @@ export default defineEventHandler(async (event) => {
 
         if (existing && existing.deleted_at) {
           // Soft-deleted: restore it with new data
-          db.prepare('UPDATE classes SET name_de = ?, name_en = ?, description = ?, deleted_at = NULL WHERE name = ?')
-            .run(cls.name_de || null, cls.name_en || null, cls.description || null, key)
+          db.prepare('UPDATE classes SET name_de = ?, name_en = ?, name_zh = ?, description = ?, deleted_at = NULL WHERE name = ?')
+            .run(cls.name_de || null, cls.name_en || null, cls.name_zh || null, cls.description || null, key)
           stats.classesImported++
         }
         else if (existing) {
           // Active: check if conflict resolution provided
           const resolution = options.classResolutions?.[key]
           if (resolution === 'overwrite') {
-            db.prepare('UPDATE classes SET name_de = ?, name_en = ?, description = ? WHERE name = ?')
-              .run(cls.name_de || null, cls.name_en || null, cls.description || null, key)
+            db.prepare('UPDATE classes SET name_de = ?, name_en = ?, name_zh = ?, description = ? WHERE name = ?')
+              .run(cls.name_de || null, cls.name_en || null, cls.name_zh || null, cls.description || null, key)
             stats.classesImported++
           }
           // 'keep' or identical = do nothing, already exists
         }
         else {
           // Doesn't exist: insert new
-          db.prepare('INSERT INTO classes (name, name_de, name_en, description) VALUES (?, ?, ?, ?)')
-            .run(key, cls.name_de || null, cls.name_en || null, cls.description || null)
+          db.prepare('INSERT INTO classes (name, name_de, name_en, name_zh, description) VALUES (?, ?, ?, ?, ?)')
+            .run(key, cls.name_de || null, cls.name_en || null, cls.name_zh || null, cls.description || null)
           stats.classesImported++
         }
       }

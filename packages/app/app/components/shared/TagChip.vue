@@ -8,7 +8,7 @@
     @click="onClick"
     @click:close="$emit('remove')"
   >
-    <span class="tag-chip__hash">#</span>{{ tag.name }}
+    <span class="tag-chip__hash">#</span>{{ displayName }}
   </v-chip>
 </template>
 
@@ -32,6 +32,9 @@ const emit = defineEmits<{
   remove: []
   click: []
 }>()
+
+const { locale } = useI18n()
+const displayName = computed(() => getLocalizedTagName(props.tag, locale.value))
 
 function onClick() {
   if (props.clickable) emit('click')

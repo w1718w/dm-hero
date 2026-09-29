@@ -1,6 +1,6 @@
 /**
  * Reverse i18n lookup for race and class keys.
- * Converts localized names (German/English) back to database keys.
+ * Converts localized names (German/English/Chinese) back to database keys.
  *
  * Example:
  * - "Mensch" → "human"
@@ -10,6 +10,7 @@
  * - "Wizard" → "wizard"
  */
 import { LOCALE_CODES, type AppLocale } from '~~/types/locale'
+import { findLocalizedReferenceKey } from './reference-data'
 
 // =============================================================================
 // SINGLE SOURCE OF TRUTH: Standard Races & Classes
@@ -327,24 +328,14 @@ export async function getRaceKey(
   const exactMatch = lookup.races[nameLower]
   if (exactMatch) return exactMatch
 
-  // Step 2: Check custom races in DB (name_de / name_en / name itself)
+  // Step 2: Check all races in DB (localized names or stable key)
   try {
     // Dynamic import for ESM compatibility (Nuxt 4)
     const dbModule = await import('./db')
     const db = dbModule.getDb()
 
-    const customRaceExact = db
-      .prepare(
-        `
-      SELECT name FROM races
-      WHERE (LOWER(name_de) = ? OR LOWER(name_en) = ? OR LOWER(name) = ?)
-        AND deleted_at IS NULL
-      LIMIT 1
-    `,
-      )
-      .get(nameLower, nameLower, nameLower) as { name: string } | undefined
-
-    if (customRaceExact) return customRaceExact.name
+    const key = findLocalizedReferenceKey(db, 'races', nameLower)
+    if (key) return key
   }
   catch (e) {
     console.error('[getRaceKey] DB error:', e)
@@ -368,16 +359,15 @@ export async function getRaceKey(
       const allCustomRaces = db
         .prepare(
           `
-        SELECT name, name_de, name_en FROM races
-        WHERE name_de IS NOT NULL AND name_en IS NOT NULL
-          AND deleted_at IS NULL
+        SELECT name, name_de, name_en, name_zh FROM races
+        WHERE deleted_at IS NULL
       `,
         )
-        .all() as Array<{ name: string, name_de: string, name_en: string }>
+        .all() as Array<{ name: string, name_de: string | null, name_en: string | null, name_zh: string | null }>
 
       for (const race of allCustomRaces) {
-        const compareValue = locale === 'de' ? race.name_de : race.name_en
-        if (simpleLevenshtein(nameLower, compareValue.toLowerCase()) <= 2) {
+        const compareValue = locale.toLowerCase().startsWith('zh') ? race.name_zh : locale === 'de' ? race.name_de : race.name_en
+        if (compareValue && simpleLevenshtein(nameLower, compareValue.toLowerCase()) <= 2) {
           return race.name
         }
       }
@@ -448,17 +438,18 @@ export async function getRaceSearchVariants(
     const customRace = db
       .prepare(
         `
-      SELECT name_de, name_en FROM races
+      SELECT name_de, name_en, name_zh FROM races
       WHERE LOWER(name) = LOWER(?)
         AND deleted_at IS NULL
       LIMIT 1
     `,
       )
-      .get(actualKey) as { name_de: string, name_en: string } | undefined
+      .get(actualKey) as { name_de: string | null, name_en: string | null, name_zh: string | null } | undefined
 
     if (customRace) {
       if (customRace.name_de) variants.push(customRace.name_de.toLowerCase())
       if (customRace.name_en) variants.push(customRace.name_en.toLowerCase())
+      if (customRace.name_zh) variants.push(customRace.name_zh.toLowerCase())
     }
   }
   catch {
@@ -482,23 +473,13 @@ export async function getClassKey(
   const exactMatch = lookup.classes[nameLower]
   if (exactMatch) return exactMatch
 
-  // Step 2: Check custom classes in DB (name_de / name_en / name itself)
+  // Step 2: Check all classes in DB (localized names or stable key)
   try {
     const dbModule = await import('./db')
     const db = dbModule.getDb()
 
-    const customClassExact = db
-      .prepare(
-        `
-      SELECT name FROM classes
-      WHERE (LOWER(name_de) = ? OR LOWER(name_en) = ? OR LOWER(name) = ?)
-        AND deleted_at IS NULL
-      LIMIT 1
-    `,
-      )
-      .get(nameLower, nameLower, nameLower) as { name: string } | undefined
-
-    if (customClassExact) return customClassExact.name
+    const key = findLocalizedReferenceKey(db, 'classes', nameLower)
+    if (key) return key
   }
   catch {
     // DB not available or error - continue with i18n only
@@ -521,16 +502,15 @@ export async function getClassKey(
       const allCustomClasses = db
         .prepare(
           `
-        SELECT name, name_de, name_en FROM classes
-        WHERE name_de IS NOT NULL AND name_en IS NOT NULL
-          AND deleted_at IS NULL
+        SELECT name, name_de, name_en, name_zh FROM classes
+        WHERE deleted_at IS NULL
       `,
         )
-        .all() as Array<{ name: string, name_de: string, name_en: string }>
+        .all() as Array<{ name: string, name_de: string | null, name_en: string | null, name_zh: string | null }>
 
       for (const classData of allCustomClasses) {
-        const compareValue = locale === 'de' ? classData.name_de : classData.name_en
-        if (simpleLevenshtein(nameLower, compareValue.toLowerCase()) <= 2) {
+        const compareValue = locale.toLowerCase().startsWith('zh') ? classData.name_zh : locale === 'de' ? classData.name_de : classData.name_en
+        if (compareValue && simpleLevenshtein(nameLower, compareValue.toLowerCase()) <= 2) {
           return classData.name
         }
       }
@@ -598,17 +578,18 @@ export async function getClassSearchVariants(
     const customClass = db
       .prepare(
         `
-      SELECT name_de, name_en FROM classes
+      SELECT name_de, name_en, name_zh FROM classes
       WHERE LOWER(name) = LOWER(?)
         AND deleted_at IS NULL
       LIMIT 1
     `,
       )
-      .get(actualKey) as { name_de: string, name_en: string } | undefined
+      .get(actualKey) as { name_de: string | null, name_en: string | null, name_zh: string | null } | undefined
 
     if (customClass) {
       if (customClass.name_de) variants.push(customClass.name_de.toLowerCase())
       if (customClass.name_en) variants.push(customClass.name_en.toLowerCase())
+      if (customClass.name_zh) variants.push(customClass.name_zh.toLowerCase())
     }
   }
   catch {
@@ -795,18 +776,8 @@ export async function convertMetadataToKeys(
           ? converted.race.value
           : converted.race
 
-      // If it's already a key (lowercase, no spaces), keep it
-      // This prevents double-conversion: "halfelf" should stay "halfelf", not be converted again
-      if (
-        typeof raceValue === 'string'
-        && raceValue === raceValue.toLowerCase()
-        && !raceValue.includes(' ')
-      ) {
-        converted.race = raceValue
-      }
-      else if (typeof raceValue === 'string') {
-        // It's a display name (e.g., "Halbelf") - convert to key
-        const raceKey = await getRaceKey(raceValue)
+      if (typeof raceValue === 'string') {
+        const raceKey = await getRaceKey(raceValue, false, locale)
         if (raceKey) converted.race = raceKey
       }
     }
@@ -820,7 +791,7 @@ export async function convertMetadataToKeys(
       for (const cls of classArr) {
         const classValue = typeof cls === 'object' && cls !== null && 'value' in cls ? cls.value : cls
         if (typeof classValue === 'string') {
-          const classKey = await getClassKey(classValue)
+          const classKey = await getClassKey(classValue, false, locale)
           convertedClasses.push(classKey || classValue)
         }
       }

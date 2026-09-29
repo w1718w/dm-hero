@@ -8,15 +8,14 @@ interface ReferenceData {
   key?: string // i18n key (e.g., "human", "elf")
   name_de?: string | null | undefined
   name_en?: string | null | undefined
+  name_zh?: string | null | undefined
 }
 
 export function useRaceName(race: ReferenceData) {
   const { t, locale } = useI18n()
 
-  // Custom race: Use DB translations if available
-  if (race.name_de && race.name_en) {
-    return locale.value === 'de' ? race.name_de : race.name_en
-  }
+  const localizedName = getLocalizedReferenceName(race, locale.value)
+  if (localizedName !== race.name) return localizedName
 
   // Standard race: Use i18n with KEY field (e.g., "human" not "Mensch")
   if (race.key) {
@@ -36,10 +35,8 @@ export function useRaceName(race: ReferenceData) {
 export function useClassName(classData: ReferenceData) {
   const { t, locale } = useI18n()
 
-  // Custom class: Use DB translations if available
-  if (classData.name_de && classData.name_en) {
-    return locale.value === 'de' ? classData.name_de : classData.name_en
-  }
+  const localizedName = getLocalizedReferenceName(classData, locale.value)
+  if (localizedName !== classData.name) return localizedName
 
   // Standard class: Use i18n with KEY field (e.g., "barbarian" not "Barbar")
   if (classData.key) {
